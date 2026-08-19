@@ -21,6 +21,33 @@ export interface StripOptions {
   accentColor?: string;
 }
 
+// ── In-Memory Image Preload Cache for Instant Frame Rendering ─────────
+const imageCache = new Map<string, HTMLImageElement>();
+
+export function preloadFrameImage(src: string): Promise<HTMLImageElement> {
+  if (!src) return Promise.reject("Empty src");
+  if (imageCache.has(src)) {
+    return Promise.resolve(imageCache.get(src)!);
+  }
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      imageCache.set(src, img);
+      resolve(img);
+    };
+    img.onerror = (err) => reject(err);
+    img.src = src;
+  });
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  if (imageCache.has(src)) {
+    return Promise.resolve(imageCache.get(src)!);
+  }
+  return preloadFrameImage(src);
+}
+
 // ── Dimensions (10x15cm @ 300DPI) ──────────────────────────────────
 const DPI = 300;
 const CM = (cm: number) => Math.round((cm / 2.54) * DPI);
@@ -99,7 +126,7 @@ export async function composeStrip(opts: StripOptions): Promise<string> {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  return canvas.toDataURL("image/jpeg", 0.95);
+  return canvas.toDataURL("image/jpeg", 1.0);
 }
 
 // ── Draw Procedural Default Frame ─────────────────────────────────────
@@ -191,14 +218,4 @@ function roundRect(
   ctx.lineTo(x, y + r);
   ctx.arcTo(x, y, x + r, y, r);
   ctx.closePath();
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err);
-    img.src = src;
-  });
 }

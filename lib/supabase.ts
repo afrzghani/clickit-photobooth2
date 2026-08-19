@@ -22,6 +22,7 @@ export type Frame = {
   id: string;
   name: string;
   image_url: string;
+  thumbnail_url?: string | null;
   preview_url?: string | null;
   layout_type?: string;
   created_at?: string;

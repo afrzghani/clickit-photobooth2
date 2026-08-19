@@ -438,14 +438,39 @@ function EventConfig({
       const frameId = crypto.randomUUID();
       const nameToUse = frameName.trim() || file.name.replace(/\.[^/.]+$/, "");
 
-      // Data URL conversion
-      const dataUrl = await new Promise<string>((resolve) => {
+      // Dual-Image generation: High-Res (1181x1772) + Mini Thumbnail (200x300)
+      const { imageUrl, thumbnailUrl } = await new Promise<{ imageUrl: string; thumbnailUrl: string }>((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
+        reader.onload = (re) => {
+          const img = new Image();
+          img.onload = () => {
+            // High-Res
+            const cHigh = document.createElement("canvas");
+            cHigh.width = 1181;
+            cHigh.height = 1772;
+            const ctxH = cHigh.getContext("2d")!;
+            ctxH.clearRect(0, 0, 1181, 1772);
+            ctxH.drawImage(img, 0, 0, 1181, 1772);
+            const highRes = cHigh.toDataURL("image/png");
+
+            // Mini Thumbnail (200x300) ~20KB for 0ms UI loading
+            const cThumb = document.createElement("canvas");
+            cThumb.width = 200;
+            cThumb.height = 300;
+            const ctxT = cThumb.getContext("2d")!;
+            ctxT.clearRect(0, 0, 200, 300);
+            ctxT.drawImage(img, 0, 0, 200, 300);
+            const miniThumb = cThumb.toDataURL("image/png");
+
+            resolve({ imageUrl: highRes, thumbnailUrl: miniThumb });
+          };
+          img.onerror = () => resolve({ imageUrl: re.target?.result as string, thumbnailUrl: re.target?.result as string });
+          img.src = re.target?.result as string;
+        };
         reader.readAsDataURL(file);
       });
 
-      let imageUrl = dataUrl;
+      let finalImageUrl = imageUrl;
       try {
         const uploaded = await uploadToStorage(
           "templates",
@@ -453,7 +478,7 @@ function EventConfig({
           file,
           "image/png"
         );
-        if (uploaded) imageUrl = uploaded;
+        if (uploaded) finalImageUrl = uploaded;
       } catch {
         // fallback to dataUrl
       }
@@ -461,7 +486,8 @@ function EventConfig({
       const newFrame: Frame = {
         id: frameId,
         name: nameToUse,
-        image_url: imageUrl,
+        image_url: finalImageUrl,
+        thumbnail_url: thumbnailUrl,
         layout_type: "2x3_strip",
       };
 

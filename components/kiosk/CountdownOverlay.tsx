@@ -42,9 +42,9 @@ export default function CountdownOverlay({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(10, 10, 15, 0.75)",
-            backdropFilter: "blur(4px)",
+            background: "transparent",
             borderRadius: "inherit",
+            pointerEvents: "none",
             zIndex: 30,
           }}
         >
@@ -64,7 +64,7 @@ export default function CountdownOverlay({
                   fontWeight: 900,
                   color: "white",
                   lineHeight: 1,
-                  textShadow: "0 0 60px var(--accent-glow)",
+                  textShadow: "0 4px 30px rgba(0,0,0,0.9), 0 0 60px var(--accent)",
                   fontFamily: "var(--font-display)",
                 }}
               >

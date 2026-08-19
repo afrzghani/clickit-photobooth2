@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { DownloadSimple, FilmSlate, ImageSquare, Camera } from "@phosphor-icons/react";
+import { DownloadSimple, FilmSlate, ImageSquare, Camera, CircleNotch, Archive } from "@phosphor-icons/react";
 import { type Session } from "@/lib/supabase";
 
 interface ResultClientProps {
@@ -12,6 +12,7 @@ interface ResultClientProps {
 export default function ResultClient({ session }: ResultClientProps) {
   const [stripUrl, setStripUrl] = useState<string | null>(session.strip_url);
   const [gifUrl, setGifUrl] = useState<string | null>(session.gif_url);
+  const [zipping, setZipping] = useState(false);
 
   useEffect(() => {
     if (!stripUrl && typeof window !== "undefined") {
@@ -31,14 +32,120 @@ export default function ResultClient({ session }: ResultClientProps) {
     }
   }, [session.id, stripUrl]);
 
+  // Direct Blob Download (forces immediate file save without opening new tab)
   const handleDownload = async (url: string, filename: string) => {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.target = "_blank";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      let blob: Blob;
+      if (url.startsWith("data:")) {
+        const arr = url.split(",");
+        const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        blob = new Blob([u8arr], { type: mime });
+      } else {
+        const res = await fetch(url);
+        blob = await res.blob();
+      }
+
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+
+  // ZIP Bundle Download for "Unduh Semua"
+  const handleDownloadZip = async () => {
+    setZipping(true);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      // 1. Add individual raw photos
+      const rawPhotos: string[] = (session.raw_photos || []).map((item) =>
+        typeof item === "string" ? item : (item as { url: string }).url
+      );
+      if (rawPhotos.length === 0 && typeof window !== "undefined") {
+        try {
+          const localRaw = sessionStorage.getItem(`photos-${session.id}`);
+          if (localRaw) {
+            const parsed = JSON.parse(localRaw);
+            if (Array.isArray(parsed)) rawPhotos.push(...parsed);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (rawPhotos.length > 0) {
+        const singleFolder = zip.folder("foto-single");
+        for (let i = 0; i < rawPhotos.length; i++) {
+          const pUrl = rawPhotos[i];
+          if (pUrl.startsWith("data:")) {
+            const base64 = pUrl.split(",")[1];
+            singleFolder?.file(`foto-${i + 1}.jpg`, base64, { base64: true });
+          } else {
+            const res = await fetch(pUrl).catch(() => null);
+            if (res) {
+              const b = await res.blob();
+              singleFolder?.file(`foto-${i + 1}.jpg`, b);
+            }
+          }
+        }
+      }
+
+      // 2. Add strip photo with frame
+      if (stripUrl) {
+        if (stripUrl.startsWith("data:")) {
+          const base64 = stripUrl.split(",")[1];
+          zip.file("strip-foto-clickit.jpg", base64, { base64: true });
+        } else {
+          const res = await fetch(stripUrl).catch(() => null);
+          if (res) {
+            const b = await res.blob();
+            zip.file("strip-foto-clickit.jpg", b);
+          }
+        }
+      }
+
+      // 3. Add animated GIF
+      if (gifUrl) {
+        if (gifUrl.startsWith("data:")) {
+          const base64 = gifUrl.split(",")[1];
+          zip.file("animasi-moving-photo.gif", base64, { base64: true });
+        } else {
+          const res = await fetch(gifUrl).catch(() => null);
+          if (res) {
+            const b = await res.blob();
+            zip.file("animasi-moving-photo.gif", b);
+          }
+        }
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const blobUrl = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `clickit-photobooth-${session.id.slice(0, 8)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (err) {
+      console.error("ZIP creation error:", err);
+    } finally {
+      setZipping(false);
+    }
   };
 
   return (
@@ -266,20 +373,26 @@ export default function ResultClient({ session }: ResultClientProps) {
               </button>
             )}
 
-            {/* Download both */}
+            {/* Download ZIP Package (Single photos + Strip + GIF) */}
             {stripUrl && (
               <button
                 className="btn-secondary"
-                onClick={() => {
-                  if (stripUrl)
-                    handleDownload(stripUrl, `clickit-strip-${session.id.slice(0,8)}.jpg`);
-                  if (gifUrl)
-                    setTimeout(() => handleDownload(gifUrl, `clickit-gif-${session.id.slice(0,8)}.gif`), 300);
-                }}
+                onClick={handleDownloadZip}
+                disabled={zipping}
                 id="download-all-btn"
+                style={{ width: "100%", gap: "0.5rem" }}
               >
-                <DownloadSimple size={18} />
-                Unduh Semua
+                {zipping ? (
+                  <>
+                    <CircleNotch size={18} className="animate-spin-slow" />
+                    Membuat Paket ZIP...
+                  </>
+                ) : (
+                  <>
+                    <Archive size={18} weight="bold" />
+                    Unduh Semua (.ZIP)
+                  </>
+                )}
               </button>
             )}
           </motion.div>

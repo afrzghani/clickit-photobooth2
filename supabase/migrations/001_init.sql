@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS frames (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name          TEXT NOT NULL,
   image_url     TEXT NOT NULL,
+  thumbnail_url TEXT,
   layout_type   TEXT NOT NULL DEFAULT '2x3_strip',
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

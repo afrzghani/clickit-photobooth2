@@ -46,6 +46,11 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
       }
 
       setCustomFrames(loaded);
+      // Instant Background RAM Pre-caching for all loaded frames
+      import("@/lib/strip-canvas").then(({ preloadFrameImage }) => {
+        loaded.forEach((f) => preloadFrameImage(f.image_url).catch(() => {}));
+      });
+
       // Auto-select first custom frame if available
       if (loaded.length > 0 && !selectedFrameUrl) {
         setSelectedFrameUrl(loaded[0].image_url);
@@ -149,7 +154,7 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
                     }}
                   >
                     <div style={{ aspectRatio: "2/3", width: "100%", borderRadius: "10px", overflow: "hidden", background: "#f5f5f5" }}>
-                      <img src={frame.image_url} alt={frame.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                      <img src={frame.thumbnail_url || frame.image_url} alt={frame.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                     </div>
                     <div style={{ fontSize: "0.8rem", fontWeight: 700, marginTop: "0.5rem", color: "var(--text-primary)", textAlign: "center" }}>
                       {frame.name}

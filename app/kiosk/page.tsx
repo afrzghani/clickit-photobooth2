@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, Sparkle, ArrowRight, Lock } from "@phosphor-icons/react";
+import { Camera, Sparkle, ArrowRight, Lock, ArrowClockwise, Trash } from "@phosphor-icons/react";
 import { supabase, type Event, type Frame } from "@/lib/supabase";
 import { subscribeToEventConfig } from "@/lib/realtime";
 import WelcomeScreen from "@/components/kiosk/WelcomeScreen";
@@ -80,6 +80,10 @@ export default function KioskPage() {
     return () => { unsubscribe(); };
   }, [event?.id]);
 
+  const handleRetakePhoto = (indexToRetake: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== indexToRetake));
+  };
+
   // Trigger manual single photo shot with countdown
   const handleTriggerPhoto = useCallback(() => {
     if (isCountingDown || photos.length >= 3) return;
@@ -95,14 +99,7 @@ export default function KioskPage() {
   }, []);
 
   const handlePhotoCaptured = useCallback((dataUrl: string) => {
-    setPhotos((prev) => {
-      const next = [...prev, dataUrl];
-      if (next.length === 3) {
-        // All 3 photos captured -> proceed to preview
-        setTimeout(() => setStep("preview"), 500);
-      }
-      return next;
-    });
+    setPhotos((prev) => [...prev, dataUrl]);
   }, []);
 
   const handleConfigConfirm = useCallback(
@@ -323,32 +320,73 @@ export default function KioskPage() {
                   )}
                 </div>
 
-                {/* MANUAL SHUTTER BUTTON */}
+                {/* MANUAL SHUTTER & RETAKE BUTTONS */}
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "center",
+                    alignItems: "center",
+                    gap: "1rem",
                     marginTop: "1.25rem",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <motion.button
-                    className="btn-primary"
-                    onClick={handleTriggerPhoto}
-                    disabled={isCountingDown || photos.length >= 3}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.96 }}
-                    style={{
-                      fontSize: "1.2rem",
-                      padding: "1rem 3rem",
-                      minWidth: "260px",
-                    }}
-                    id="shutter-trigger-btn"
-                  >
-                    <Camera size={24} weight="fill" />
-                    {isCountingDown
-                      ? "Mengambil Foto..."
-                      : `Ambil Foto (${photos.length + 1}/3)`}
-                  </motion.button>
+                  {photos.length > 0 && !isCountingDown && (
+                    <motion.button
+                      className="btn-secondary"
+                      onClick={() => handleRetakePhoto(photos.length - 1)}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      style={{
+                        padding: "0.875rem 1.5rem",
+                        fontSize: "0.95rem",
+                        color: "var(--accent)",
+                        borderColor: "var(--border-accent)",
+                      }}
+                      id="retake-photo-btn"
+                    >
+                      <ArrowClockwise size={20} weight="bold" />
+                      Ulangi Foto {photos.length}
+                    </motion.button>
+                  )}
+
+                  {photos.length < 3 ? (
+                    <motion.button
+                      className="btn-primary"
+                      onClick={handleTriggerPhoto}
+                      disabled={isCountingDown}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      style={{
+                        fontSize: "1.2rem",
+                        padding: "1rem 3rem",
+                        minWidth: "240px",
+                      }}
+                      id="shutter-trigger-btn"
+                    >
+                      <Camera size={24} weight="fill" />
+                      {isCountingDown
+                        ? "Mengambil Foto..."
+                        : `Ambil Foto (${photos.length + 1}/3)`}
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      className="btn-primary"
+                      onClick={() => setStep("preview")}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.96 }}
+                      style={{
+                        fontSize: "1.2rem",
+                        padding: "1rem 3rem",
+                        minWidth: "240px",
+                        background: "linear-gradient(135deg, var(--accent), #ff85b3)",
+                      }}
+                      id="proceed-preview-btn"
+                    >
+                      Lanjut ke Preview
+                      <ArrowRight size={24} weight="bold" />
+                    </motion.button>
+                  )}
                 </div>
               </div>
 
@@ -370,8 +408,9 @@ export default function KioskPage() {
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       style={{
-                        width: "80px",
-                        height: "60px",
+                        position: "relative",
+                        width: "84px",
+                        height: "64px",
                         borderRadius: "10px",
                         overflow: "hidden",
                         border: "2px solid var(--accent)",
@@ -380,13 +419,32 @@ export default function KioskPage() {
                     >
                       <img
                         src={photo}
-                        alt={`Foto ${i + 1}`}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
+                        alt={`Captured ${i + 1}`}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       />
+                      {!isCountingDown && (
+                        <button
+                          onClick={() => handleRetakePhoto(i)}
+                          title={`Ulangi Foto ${i + 1}`}
+                          style={{
+                            position: "absolute",
+                            top: "4px",
+                            right: "4px",
+                            width: "22px",
+                            height: "22px",
+                            borderRadius: "50%",
+                            background: "rgba(0,0,0,0.7)",
+                            color: "white",
+                            border: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <Trash size={12} weight="bold" />
+                        </button>
+                      )}
                     </motion.div>
                   ))}
                 </motion.div>

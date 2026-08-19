@@ -83,7 +83,7 @@ const CameraView = forwardRef<CameraViewHandle, CameraViewProps>(
       setIsFlashing(true);
       setTimeout(() => setIsFlashing(false), 350);
 
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      const dataUrl = canvas.toDataURL("image/jpeg", 1.0);
       onPhotoCaptured(dataUrl);
     }, [glamEnabled, mirrored, onPhotoCaptured]);
 
