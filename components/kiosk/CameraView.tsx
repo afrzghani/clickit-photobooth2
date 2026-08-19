@@ -136,8 +136,27 @@ const CameraView = forwardRef<CameraViewHandle, CameraViewProps>(
               objectFit: "cover",
               transform: mirrored ? "scaleX(-1)" : "none",
               borderRadius: "inherit",
+              filter: glamEnabled
+                ? "contrast(107%) brightness(109%) saturate(115%)"
+                : "none",
+              transition: "filter 0.3s ease",
             }}
           />
+
+          {/* Real-time Glam Beauty Skin Glow Overlay */}
+          {glamEnabled && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "inherit",
+                pointerEvents: "none",
+                background: "radial-gradient(ellipse at 50% 35%, rgba(255,238,225,0.14) 0%, rgba(255,210,230,0.05) 100%)",
+                backdropFilter: "blur(0.4px)",
+                zIndex: 2,
+              }}
+            />
+          )}
 
           {/* Shutter flash overlay */}
           <AnimatePresence>

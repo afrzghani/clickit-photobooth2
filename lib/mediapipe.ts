@@ -1,6 +1,7 @@
 /**
- * Glam Booth — Face detection + skin smoothing via MediaPipe
- * Applies subtle beauty smoothing to captured photos
+ * Glam Booth — High-End Studio Skin Smoothing & Radiant Beauty Filter
+ * Applies noticeable skin smoothing, brightness boost, and studio glow
+ * both on live camera feed and captured photo output.
  */
 
 let faceLandmarker: unknown = null;
@@ -8,23 +9,28 @@ let isInitialized = false;
 
 export async function initGlamBooth(): Promise<void> {
   if (isInitialized) return;
-  const { FaceLandmarker, FilesetResolver } = await import(
-    "@mediapipe/tasks-vision"
-  );
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-  );
-  faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-      delegate: "GPU",
-    },
-    outputFaceBlendshapes: false,
-    runningMode: "IMAGE",
-    numFaces: 1,
-  });
-  isInitialized = true;
+  try {
+    const { FaceLandmarker, FilesetResolver } = await import(
+      "@mediapipe/tasks-vision"
+    );
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+    );
+    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+        delegate: "GPU",
+      },
+      outputFaceBlendshapes: false,
+      runningMode: "IMAGE",
+      numFaces: 1,
+    });
+    isInitialized = true;
+  } catch {
+    // fallback gracefully if mediapipe WASM fails to load
+    isInitialized = true;
+  }
 }
 
 export async function applyGlamEffect(
@@ -34,46 +40,41 @@ export async function applyGlamEffect(
   output.width = sourceCanvas.width;
   output.height = sourceCanvas.height;
   const ctx = output.getContext("2d")!;
+  const w = sourceCanvas.width;
+  const h = sourceCanvas.height;
 
-  // Draw original
-  ctx.drawImage(sourceCanvas, 0, 0);
+  // Layer 1: Base photo with contrast, brightness & saturation boost
+  ctx.save();
+  ctx.filter = "contrast(107%) brightness(109%) saturate(115%)";
+  ctx.drawImage(sourceCanvas, 0, 0, w, h);
+  ctx.restore();
 
-  if (!isInitialized || !faceLandmarker) {
-    // No glam, return original
-    return output;
-  }
+  // Layer 2: Silky Skin Smoothing Overlay (Blurred soft-light blend)
+  const blurCanvas = document.createElement("canvas");
+  blurCanvas.width = w;
+  blurCanvas.height = h;
+  const blurCtx = blurCanvas.getContext("2d")!;
+  blurCtx.filter = "blur(4px) brightness(106%)";
+  blurCtx.drawImage(sourceCanvas, 0, 0, w, h);
 
-  try {
-    const fl = faceLandmarker as any;
-    const result = fl.detect(sourceCanvas);
+  ctx.save();
+  ctx.globalAlpha = 0.45; // 45% skin smoothing blur intensity
+  ctx.drawImage(blurCanvas, 0, 0, w, h);
+  ctx.restore();
 
-    if (!result.faceLandmarks || result.faceLandmarks.length === 0) {
-      return output;
-    }
-
-    // Apply subtle skin smoothing via blur on face region
-    applySubtleSkinSmoothing(ctx, output.width, output.height);
-  } catch {
-    // Glam failed silently, return original
-  }
+  // Layer 3: Warm Studio Lighting Radiance Overlay
+  ctx.save();
+  const radGrad = ctx.createRadialGradient(
+    w / 2, h / 3, w * 0.1,
+    w / 2, h / 2, w * 0.8
+  );
+  radGrad.addColorStop(0, "rgba(255, 238, 225, 0.12)");
+  radGrad.addColorStop(1, "rgba(255, 220, 235, 0.04)");
+  ctx.fillStyle = radGrad;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
 
   return output;
-}
-
-function applySubtleSkinSmoothing(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number
-) {
-  // Subtle brightness boost + very light blur for beauty effect
-  ctx.filter = "blur(0.5px) brightness(1.05)";
-  const imageData = ctx.getImageData(0, 0, width, height);
-  ctx.putImageData(imageData, 0, 0);
-  ctx.filter = "none";
-
-  // Slight warmth overlay
-  ctx.fillStyle = "rgba(255, 220, 180, 0.04)";
-  ctx.fillRect(0, 0, width, height);
 }
 
 export function destroyGlamBooth(): void {
