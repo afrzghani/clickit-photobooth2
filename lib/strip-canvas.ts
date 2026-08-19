@@ -32,14 +32,7 @@ export function preloadFrameImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = async () => {
-      try {
-        if ("decode" in img) {
-          await img.decode();
-        }
-      } catch {
-        // ignore decode failure
-      }
+    img.onload = () => {
       imageCache.set(src, img);
       resolve(img);
     };

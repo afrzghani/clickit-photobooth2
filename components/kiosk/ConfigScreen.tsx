@@ -11,8 +11,36 @@ interface ConfigScreenProps {
   onBack: () => void;
 }
 
-// In-memory cache for ultra-fast compressed mini-thumbnails (200x300 ~20KB)
+// Global in-memory cache for ultra-fast compressed mini-thumbnails (200x300 ~20KB)
 const miniThumbCache = new Map<string, string>();
+const blobCache = new Map<string, string>();
+
+/**
+ * Converts heavy Base64 data URLs (~5-10MB string) into lightweight 50-byte Blob URLs
+ * Eliminates JavaScript string memory allocation and Base64 parsing CPU lag completely.
+ */
+function toBlobUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (!url.startsWith("data:")) return url;
+  if (blobCache.has(url)) return blobCache.get(url)!;
+
+  try {
+    const arr = url.split(",");
+    const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    const blob = new Blob([u8arr], { type: mime });
+    const blobUrl = URL.createObjectURL(blob);
+    blobCache.set(url, blobUrl);
+    return blobUrl;
+  } catch {
+    return url;
+  }
+}
 
 function compressDataUrlToThumb(dataUrl: string): Promise<string> {
   return new Promise((resolve) => {
@@ -28,13 +56,13 @@ function compressDataUrlToThumb(dataUrl: string): Promise<string> {
           ctx.drawImage(img, 0, 0, 200, 300);
           // Compressed PNG thumbnail (retains frame transparency for card preview)
           const mini = canvas.toDataURL("image/png");
-          resolve(mini);
+          resolve(toBlobUrl(mini) || mini);
           return;
         }
       } catch {}
-      resolve(dataUrl);
+      resolve(toBlobUrl(dataUrl) || dataUrl);
     };
-    img.onerror = () => resolve(dataUrl);
+    img.onerror = () => resolve(toBlobUrl(dataUrl) || dataUrl);
     img.src = dataUrl;
   });
 }
@@ -52,7 +80,7 @@ function useOptimizedThumbnails(frames: Frame[]) {
       for (const frame of frames) {
         // 1. Explicit separate thumbnail_url if available
         if (frame.thumbnail_url && frame.thumbnail_url !== frame.image_url) {
-          nextMap[frame.id] = frame.thumbnail_url;
+          nextMap[frame.id] = toBlobUrl(frame.thumbnail_url) || frame.thumbnail_url;
           continue;
         }
 
@@ -75,10 +103,10 @@ function useOptimizedThumbnails(frames: Frame[]) {
             miniThumbCache.set(frame.id, compressed);
             nextMap[frame.id] = compressed;
           } catch {
-            nextMap[frame.id] = frame.image_url;
+            nextMap[frame.id] = toBlobUrl(frame.image_url) || frame.image_url;
           }
         } else {
-          nextMap[frame.id] = frame.image_url;
+          nextMap[frame.id] = toBlobUrl(frame.image_url) || frame.image_url;
         }
       }
 
@@ -191,14 +219,21 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
         // ignore
       }
 
-      setCustomFrames(loaded);
+      // Convert all heavy Base64 data URLs to lightweight 50-byte Blob URLs
+      const optimizedLoaded = loaded.map((f) => ({
+        ...f,
+        image_url: toBlobUrl(f.image_url) || f.image_url,
+        thumbnail_url: f.thumbnail_url ? (toBlobUrl(f.thumbnail_url) || f.thumbnail_url) : null,
+      }));
+
+      setCustomFrames(optimizedLoaded);
 
       // Auto-select and preload ONLY the first frame
-      if (loaded.length > 0 && !selectedFrameUrl) {
-        setSelectedFrameUrl(loaded[0].image_url);
-        setSelectedTemplate(loaded[0].id);
+      if (optimizedLoaded.length > 0 && !selectedFrameUrl) {
+        setSelectedFrameUrl(optimizedLoaded[0].image_url);
+        setSelectedTemplate(optimizedLoaded[0].id);
         import("@/lib/strip-canvas").then(({ preloadFrameImage }) => {
-          preloadFrameImage(loaded[0].image_url).catch(() => {});
+          preloadFrameImage(optimizedLoaded[0].image_url).catch(() => {});
         });
       }
     }
@@ -212,7 +247,12 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
 
     const handleMsg = (e: MessageEvent) => {
       if (e.data?.type === "NEW_FRAME" && e.data?.payload) {
-        const frame = e.data.payload as Frame;
+        const rawFrame = e.data.payload as Frame;
+        const frame: Frame = {
+          ...rawFrame,
+          image_url: toBlobUrl(rawFrame.image_url) || rawFrame.image_url,
+          thumbnail_url: rawFrame.thumbnail_url ? (toBlobUrl(rawFrame.thumbnail_url) || rawFrame.thumbnail_url) : null,
+        };
         setCustomFrames((prev) => {
           const next = [frame, ...prev.filter((f) => f.id !== frame.id)];
           if (!selectedFrameUrl) {

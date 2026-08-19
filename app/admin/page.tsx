@@ -16,6 +16,7 @@ import {
   Trash,
   Plus,
   Lock,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 import { supabase, type Session, type Event, type Frame } from "@/lib/supabase";
 import {
@@ -23,6 +24,39 @@ import {
   subscribeToSessionUpdates,
   uploadToStorage,
 } from "@/lib/realtime";
+
+// Direct file download for buyer photo strip with frame
+const handleDownloadStrip = async (stripUrl: string | null, sessionId: string) => {
+  if (!stripUrl) return;
+  try {
+    let blob: Blob;
+    if (stripUrl.startsWith("data:")) {
+      const arr = stripUrl.split(",");
+      const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      blob = new Blob([u8arr], { type: mime });
+    } else {
+      const res = await fetch(stripUrl);
+      blob = await res.blob();
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `clickit-foto-${sessionId.slice(0, 8)}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  } catch {
+    window.open(stripUrl, "_blank");
+  }
+};
 
 type AdminTab = "queue" | "history" | "config";
 
@@ -174,16 +208,29 @@ function PrintQueue({
 
           <div style={{ display: "flex", gap: "0.5rem" }}>
             {session.strip_url && (
-              <motion.button
-                className="btn-primary"
-                onClick={() => handlePrint(session)}
-                whileTap={{ scale: 0.97 }}
-                id={`print-btn-${session.id}`}
-                style={{ fontSize: "0.875rem", padding: "0.625rem 1.25rem" }}
-              >
-                <Printer size={16} />
-                Cetak
-              </motion.button>
+              <>
+                <motion.button
+                  className="btn-secondary"
+                  onClick={() => handleDownloadStrip(session.strip_url, session.id)}
+                  whileTap={{ scale: 0.97 }}
+                  id={`download-btn-${session.id}`}
+                  style={{ fontSize: "0.875rem", padding: "0.625rem 1rem", gap: "0.375rem" }}
+                  title="Unduh Foto Pembeli"
+                >
+                  <DownloadSimple size={16} />
+                  Unduh
+                </motion.button>
+                <motion.button
+                  className="btn-primary"
+                  onClick={() => handlePrint(session)}
+                  whileTap={{ scale: 0.97 }}
+                  id={`print-btn-${session.id}`}
+                  style={{ fontSize: "0.875rem", padding: "0.625rem 1.25rem" }}
+                >
+                  <Printer size={16} />
+                  Cetak
+                </motion.button>
+              </>
             )}
           </div>
         </motion.div>
@@ -342,14 +389,26 @@ function SessionHistory({
               <span className={`status-badge ${session.status}`}>
                 {session.status === "pending" ? "Menunggu" : "Tercetak"}
               </span>
-              <button
-                className="btn-ghost"
-                onClick={() => onReprint(session)}
-                id={`reprint-btn-${session.id}`}
-                title="Cetak ulang"
-              >
-                <ArrowClockwise size={16} />
-              </button>
+              <div style={{ display: "flex", gap: "0.25rem" }}>
+                {session.strip_url && (
+                  <button
+                    className="btn-ghost"
+                    onClick={() => handleDownloadStrip(session.strip_url, session.id)}
+                    id={`download-btn-${session.id}`}
+                    title="Unduh Foto Pembeli"
+                  >
+                    <DownloadSimple size={16} />
+                  </button>
+                )}
+                <button
+                  className="btn-ghost"
+                  onClick={() => onReprint(session)}
+                  id={`reprint-btn-${session.id}`}
+                  title="Cetak ulang"
+                >
+                  <ArrowClockwise size={16} />
+                </button>
+              </div>
             </div>
           ))
         )}
