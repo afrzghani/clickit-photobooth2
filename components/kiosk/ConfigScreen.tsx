@@ -190,44 +190,7 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
           </div>
         )}
 
-        {/* Glam Booth Status Banner (Always Active) */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "1rem 1.25rem",
-            background: "rgba(255,61,138,0.06)",
-            border: "1.5px solid var(--border-accent)",
-            borderRadius: "var(--radius-card)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                background: "var(--accent)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-              }}
-            >
-              <Star size={20} weight="fill" />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>Glam Booth & Skin Smoothing</div>
-              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                Penyempurnaan kulit & pencahayaan otomatis aktif untuk setiap foto.
-              </div>
-            </div>
-          </div>
-          <span className="status-badge printed" style={{ background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)" }}>
-            Selalu Aktif
-          </span>
-        </div>
+
 
         {/* Actions */}
         <div style={{ display: "flex", gap: "0.875rem" }}>
