@@ -15,6 +15,7 @@ import {
   UploadSimple,
   Trash,
   Plus,
+  Lock,
 } from "@phosphor-icons/react";
 import { supabase, type Session, type Event, type Frame } from "@/lib/supabase";
 import {
@@ -700,10 +701,33 @@ function EventConfig({
 
 // ─── Main Admin Page ───────────────────────────────────────────────
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+
   const [activeTab, setActiveTab] = useState<AdminTab>("queue");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem("clickit_admin_auth") === "true") {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput.trim() === "192837" || pinInput.trim() === "192837") {
+      setIsAuthenticated(true);
+      setPinError(false);
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("clickit_admin_auth", "true");
+      }
+    } else {
+      setPinError(true);
+    }
+  };
 
   // Load event & sessions (with local fallback)
   useEffect(() => {
@@ -836,6 +860,85 @@ export default function AdminPage() {
       badge: 0,
     },
   ];
+
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="kiosk-container dot-pattern"
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="card-elevated"
+          style={{
+            width: "100%",
+            maxWidth: "400px",
+            padding: "2.5rem 2rem",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1.5rem",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "20px",
+              background: "var(--accent-dim)",
+              border: "1.5px solid var(--border-accent)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--accent)",
+            }}
+          >
+            <Lock size={32} weight="bold" />
+          </div>
+
+          <div>
+            <h2 className="display-md" style={{ fontSize: "1.375rem", marginBottom: "0.25rem" }}>
+              Admin Dashboard PIN
+            </h2>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              Masukkan PIN untuk membuka akses dashboard admin.
+            </p>
+          </div>
+
+          <form onSubmit={handlePinSubmit} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div>
+              <input
+                type="password"
+                className="input"
+                placeholder="PIN Admin"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                style={{ textAlign: "center", fontSize: "1.2rem", letterSpacing: "0.25em" }}
+                autoFocus
+              />
+              {pinError && (
+                <div style={{ color: "#ff3d57", fontSize: "0.78rem", marginTop: "0.375rem" }}>
+                  PIN salah. Masukkan PIN yang benar.
+                </div>
+              )}
+            </div>
+
+            <button type="submit" className="btn-primary" style={{ width: "100%" }}>
+              Buka Dashboard Admin
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-layout">

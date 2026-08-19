@@ -60,15 +60,8 @@ const CameraView = forwardRef<CameraViewHandle, CameraViewProps>(
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d")!;
 
-      // Mirror if selfie
-      if (mirrored) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
+      // Draw video directly in normal orientation for un-mirrored output photo
       ctx.drawImage(video, 0, 0);
-      if (mirrored) {
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-      }
 
       // Apply glam if enabled
       if (glamEnabled) {

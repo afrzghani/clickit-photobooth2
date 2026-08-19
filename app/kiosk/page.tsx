@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, Sparkle, ArrowRight } from "@phosphor-icons/react";
+import { Camera, Sparkle, ArrowRight, Lock } from "@phosphor-icons/react";
 import { supabase, type Event, type Frame } from "@/lib/supabase";
 import { subscribeToEventConfig } from "@/lib/realtime";
 import WelcomeScreen from "@/components/kiosk/WelcomeScreen";
@@ -22,17 +22,41 @@ type Step =
   | "result";
 
 export default function KioskPage() {
+  const [isKioskUnlocked, setIsKioskUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+
   const [step, setStep] = useState<Step>("welcome");
   const [photos, setPhotos] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [stripUrl, setStripUrl] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState("pink-bloom");
   const [selectedFrameUrl, setSelectedFrameUrl] = useState<string | null>(null);
-  const [glamEnabled, setGlamEnabled] = useState(false);
+  const [glamEnabled, setGlamEnabled] = useState(true);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [event, setEvent] = useState<Event | null>(null);
 
   const cameraRef = useRef<CameraViewHandle>(null);
+
+  // Check local Kiosk unlock state
+  useEffect(() => {
+    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem("clickit_kiosk_unlocked") === "true") {
+      setIsKioskUnlocked(true);
+    }
+  }, []);
+
+  const handleUnlockKiosk = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput.trim() === "192837" || pinInput.trim() === "192837") {
+      setIsKioskUnlocked(true);
+      setPinError(false);
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("clickit_kiosk_unlocked", "true");
+      }
+    } else {
+      setPinError(true);
+    }
+  };
 
   // Load active event config
   useEffect(() => {
@@ -119,9 +143,88 @@ export default function KioskPage() {
     setStripUrl(null);
     setTemplateId("pink-bloom");
     setSelectedFrameUrl(null);
-    setGlamEnabled(false);
+    setGlamEnabled(true);
     setIsCountingDown(false);
   }, []);
+
+  if (!isKioskUnlocked) {
+    return (
+      <div
+        className="kiosk-container dot-pattern"
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1.5rem",
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="card-elevated"
+          style={{
+            width: "100%",
+            maxWidth: "400px",
+            padding: "2.5rem 2rem",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1.5rem",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "20px",
+              background: "var(--accent-dim)",
+              border: "1.5px solid var(--border-accent)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--accent)",
+            }}
+          >
+            <Lock size={32} weight="bold" />
+          </div>
+
+          <div>
+            <h2 className="display-md" style={{ fontSize: "1.375rem", marginBottom: "0.25rem" }}>
+              Akses Perangkat Kiosk
+            </h2>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              Masukkan PIN Acara untuk membuka layar Photobooth Kiosk.
+            </p>
+          </div>
+
+          <form onSubmit={handleUnlockKiosk} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div>
+              <input
+                type="password"
+                className="input"
+                placeholder="Masukkan PIN"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                style={{ textAlign: "center", fontSize: "1.2rem", letterSpacing: "0.25em" }}
+                autoFocus
+              />
+              {pinError && (
+                <div style={{ color: "#ff3d57", fontSize: "0.78rem", marginTop: "0.375rem" }}>
+                  PIN salah. Masukkan PIN yang benar.
+                </div>
+              )}
+            </div>
+
+            <button type="submit" className="btn-primary" style={{ width: "100%" }}>
+              Buka Layar Kiosk
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
 
   const accentColor =
     (event?.theme as { accent?: string })?.accent ?? "#ff3d8a";
