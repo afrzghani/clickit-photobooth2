@@ -10,7 +10,7 @@ interface CountdownOverlayProps {
 
 export default function CountdownOverlay({
   onComplete,
-  startFrom = 3,
+  startFrom = 5,
 }: CountdownOverlayProps) {
   const [count, setCount] = useState(startFrom);
   const [visible, setVisible] = useState(true);

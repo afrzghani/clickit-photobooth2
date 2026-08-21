@@ -315,7 +315,7 @@ export default function KioskPage() {
                         overflow: "hidden",
                       }}
                     >
-                      <CountdownOverlay onComplete={handleCountdownComplete} />
+                      <CountdownOverlay onComplete={handleCountdownComplete} startFrom={5} />
                     </div>
                   )}
                 </div>

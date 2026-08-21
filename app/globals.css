@@ -491,10 +491,19 @@ body {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 .animate-pulse-accent { animation: pulse-accent 2s ease-in-out infinite; }
 .animate-float { animation: float-up 3s ease-in-out infinite; }
 .animate-spin-slow { animation: spin-slow 2s linear infinite; }
+.skeleton-pulse {
+  background: linear-gradient(90deg, #ffe4ef 25%, #ffffff 50%, #ffe4ef 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, memo } from "react";
 import { motion } from "motion/react";
-import { CheckCircle, Sparkle, Image as ImageIcon } from "@phosphor-icons/react";
+import { CheckCircle, Sparkle, Image as ImageIcon, CircleNotch } from "@phosphor-icons/react";
 import { supabase, type Event, type Frame } from "@/lib/supabase";
 
 interface ConfigScreenProps {
@@ -188,12 +188,14 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
   const [selectedFrameUrl, setSelectedFrameUrl] = useState<string | null>(null);
   const [glamEnabled] = useState(true); // Glam booth selalu aktif
   const [customFrames, setCustomFrames] = useState<Frame[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const thumbnailsMap = useOptimizedThumbnails(customFrames);
 
   // Fetch uploaded PNG frames from Supabase or IndexedDB fallback
   useEffect(() => {
     async function loadFrames() {
+      setIsLoading(true);
       let loaded: Frame[] = [];
       try {
         const { data } = await supabase.from("frames").select("*").order("created_at", { ascending: false });
@@ -236,6 +238,8 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
           preloadFrameImage(optimizedLoaded[0].image_url).catch(() => {});
         });
       }
+
+      setIsLoading(false);
     }
     loadFrames();
 
@@ -261,6 +265,7 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
           }
           return next;
         });
+        setIsLoading(false);
       }
     };
 
@@ -319,7 +324,48 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
         </div>
 
         {/* Custom PNG Frames List */}
-        {customFrames.length > 0 ? (
+        {isLoading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div className="label-mono" style={{ color: "var(--accent)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <CircleNotch size={14} className="animate-spin-slow" />
+              <span>Memuat Frame PNG...</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem" }}>
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    borderRadius: "14px",
+                    border: "2.5px solid var(--border)",
+                    background: "white",
+                    padding: "0.625rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <div
+                    className="skeleton-pulse"
+                    style={{
+                      aspectRatio: "2/3",
+                      width: "100%",
+                      borderRadius: "10px",
+                    }}
+                  />
+                  <div
+                    className="skeleton-pulse"
+                    style={{
+                      height: "14px",
+                      width: "60%",
+                      margin: "0 auto",
+                      borderRadius: "6px",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : customFrames.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <div className="label-mono" style={{ color: "var(--accent)" }}>
               Frame Tersedia ({customFrames.length})
@@ -373,7 +419,7 @@ export default function ConfigScreen({ event, onConfirm, onBack }: ConfigScreenP
           <button
             className="btn-primary"
             onClick={handleConfirm}
-            disabled={customFrames.length > 0 && !selectedFrameUrl}
+            disabled={isLoading || (customFrames.length > 0 && !selectedFrameUrl)}
             id="config-confirm-btn"
             style={{ flex: 1 }}
           >
